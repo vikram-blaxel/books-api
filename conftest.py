@@ -3,13 +3,17 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from main import create_app
-from dependencies import get_db, database_url
+from dependencies import get_db
 from models import Base
+
+# Use SQLite in-memory database for testing
+TEST_DATABASE_URL = "sqlite:///:memory:"
+
 
 @pytest.fixture(scope="session")
 def test_engine():
     """Create test database engine"""
-    test_engine = create_engine(database_url)
+    test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=test_engine)
     yield test_engine
     Base.metadata.drop_all(bind=test_engine)

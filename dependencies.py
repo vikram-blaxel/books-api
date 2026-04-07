@@ -14,14 +14,32 @@ if not database_url:
         "Please set it in your .env file or environment."
     )
 
-engine = create_engine(database_url)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create engine only if not in test mode
+# Engine creation is deferred - only created when needed
+engine = None
+SessionLocal = None
+
+
+def get_engine():
+    """Get or create the database engine."""
+    global engine
+    if engine is None:
+        engine = create_engine(database_url)
+    return engine
+
+
+def get_session_local():
+    """Get or create the session local."""
+    global SessionLocal
+    if SessionLocal is None:
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return SessionLocal
 
 
 def init_db():
     """Initialize the database by creating all tables."""
     try:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=get_engine())
     except SQLAlchemyError as e:
         print(f"Error initializing the database: {e}")
         raise
@@ -29,7 +47,8 @@ def init_db():
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency for database sessions."""
-    db = SessionLocal()
+    session_local = get_session_local()
+    db = session_local()
     try:
         yield db
     finally:

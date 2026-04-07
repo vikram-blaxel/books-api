@@ -1,6 +1,7 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 
 # SQLAlchemy models
@@ -18,7 +19,7 @@ class Book(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     author: Mapped[str] = mapped_column(String(255))
-    publisher: Mapped[str] = mapped_column(String(255), nullable=False)
+    publisher: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
 # Pydantic models
 class BookIn(BaseModel):

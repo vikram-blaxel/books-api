@@ -1,0 +1,63 @@
+name: test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        id: run-tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_test
+        run: |
+          pytest --tb=short -q
+        continue-on-error: true
+
+      - name: Trigger fixer agent on test failure
+        if: steps.run-tests.outcome == 'failure'
+        env:
+          BLAXEL_API_KEY: ${{ secrets.BLAXEL_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          curl -X POST "https://agt-fixer-agent.bl.run/fix" \
+            -H "Authorization: Bearer ${BLAXEL_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repository": "'"${REPOSITORY}"'",
+              "pr_number": '"${PR_NUMBER}"'
+            }'
+
+      - name: Fail job if tests failed
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1

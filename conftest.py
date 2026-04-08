@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from main import create_app
@@ -17,16 +17,19 @@ def test_engine():
 
 @pytest.fixture(scope="function")
 def test_db(test_engine):
-    """Create test database session"""
-    TestingSessionLocal = sessionmaker(
-        autocommit=False, autoflush=False, bind=test_engine
-    )
-    db = TestingSessionLocal()
+    """Create test database session that rolls back after each test"""
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    db = sessionmaker(
+        autocommit=False, autoflush=False, bind=connection,
+        join_transaction_mode="create_savepoint"
+    )()
     try:
         yield db
     finally:
-        db.rollback()
         db.close()
+        transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture

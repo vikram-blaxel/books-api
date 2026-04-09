@@ -4,7 +4,7 @@ import models
 
 # Create a new book
 def create_book(db: Session, book: models.BookIn):
-    db_book = models.Book(title=book.title, author=book.author)
+    db_book = models.Book(title=book.title, author=book.author, publisher="Unknown")
     db.add(db_book)
     db.commit()
     db.refresh(db_book)

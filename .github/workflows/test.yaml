@@ -57,7 +57,7 @@ jobs:
               "repository": "'"${REPOSITORY}"'",
               "pr_number": '"${PR_NUMBER}"'
             }' \
-            --max-time 1 \
+            --max-time 20 \
             &
 
       - name: Fail job if tests failed

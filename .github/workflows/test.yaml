@@ -56,7 +56,9 @@ jobs:
             -d '{
               "repository": "'"${REPOSITORY}"'",
               "pr_number": '"${PR_NUMBER}"'
-            }'
+            }' \
+            --max-time 1 \
+            &
 
       - name: Fail job if tests failed
         if: steps.run-tests.outcome == 'failure'

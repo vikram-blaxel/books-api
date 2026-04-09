@@ -51,7 +51,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           curl -X POST "https://agt-fixer-agent-nb1rct.bl.run/fix" \
-            -H "Authorization: Bearer ${BLAXEL_API_KEY}" \
+            -H "X-Blaxel-Authorization: Bearer ${BLAXEL_API_KEY}" \
             -H "Content-Type: application/json" \
             -d '{
               "repository": "'"${REPOSITORY}"'",

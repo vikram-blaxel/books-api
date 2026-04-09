@@ -43,7 +43,7 @@ jobs:
           pytest --tb=short -q
         continue-on-error: true
 
-      - name: Trigger fixer agent on test failure
+      - name: Start fixer agent on test failure
         if: steps.run-tests.outcome == 'failure'
         env:
           BLAXEL_API_KEY: ${{ secrets.BLAXEL_API_KEY }}
@@ -56,9 +56,7 @@ jobs:
             -d '{
               "repository": "'"${REPOSITORY}"'",
               "pr_number": '"${PR_NUMBER}"'
-            }' \
-            --max-time 20 \
-            &
+            }'
 
       - name: Fail job if tests failed
         if: steps.run-tests.outcome == 'failure'

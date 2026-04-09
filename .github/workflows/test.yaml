@@ -50,7 +50,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          curl -X POST "https://agt-fixer-agent.bl.run/fix" \
+          curl -X POST "https://agt-fixer-agent-nb1rct.bl.run/fix" \
             -H "Authorization: Bearer ${BLAXEL_API_KEY}" \
             -H "Content-Type: application/json" \
             -d '{

@@ -9,3 +9,9 @@
 
 # macOS
 .DS_Store
+
+# Environment / secrets – never commit credentials
+.env
+
+# SQLite test database
+*.db

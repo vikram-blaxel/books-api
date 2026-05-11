@@ -1,10 +1,11 @@
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from main import create_app
 from dependencies import get_db, database_url
 from models import Base
+
 
 @pytest.fixture(scope="session")
 def test_engine():
@@ -34,13 +35,16 @@ def test_db(test_engine):
 
 @pytest.fixture
 def test_app(test_engine):
-    """Create test FastAPI application with test database"""
+    """Create test FastAPI application with test database using savepoint isolation"""
+
+    connection = test_engine.connect()
+    transaction = connection.begin()
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
-        db = TestingSessionLocal()
+        db = sessionmaker(
+            autocommit=False, autoflush=False, bind=connection,
+            join_transaction_mode="create_savepoint"
+        )()
         try:
             yield db
         finally:
@@ -48,7 +52,10 @@ def test_app(test_engine):
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
-    return app
+    yield app
+
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture

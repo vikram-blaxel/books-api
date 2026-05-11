@@ -23,8 +23,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    # Port 5432 is intentionally NOT exposed to the host; only accessible within the Compose network
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db.sql:/docker-entrypoint-initdb.d/db.sql

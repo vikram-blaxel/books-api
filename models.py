@@ -18,7 +18,8 @@ class Book(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     author: Mapped[str] = mapped_column(String(255))
-    isbn: Mapped[str] = mapped_column(String(255), nullable=False)
+    isbn: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+
 
 # Pydantic models
 class BookIn(BaseModel):
@@ -26,6 +27,7 @@ class BookIn(BaseModel):
 
     title: str
     author: str
+    isbn: str
 
 
 class BookOut(BaseModel):
@@ -34,5 +36,6 @@ class BookOut(BaseModel):
     id: int
     title: str
     author: str
+    isbn: str
 
     model_config = ConfigDict(from_attributes=True)

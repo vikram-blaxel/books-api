@@ -9,3 +9,9 @@
 
 # macOS
 .DS_Store
+
+# Environment / secrets
+.env
+
+# Test artifacts
+test.db

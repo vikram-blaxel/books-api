@@ -1,28 +1,41 @@
+import os
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
-from main import create_app
-from dependencies import get_db, database_url
-from models import Base
+
+# Use an in-process SQLite database for all tests so no external Postgres is needed.
+TEST_DATABASE_URL = "sqlite:///./test.db"
+
+# Set DATABASE_URL before importing application modules so dependencies.py does not raise.
+os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
+
+from main import create_app  # noqa: E402  (import after env setup)
+from dependencies import get_db  # noqa: E402
+from models import Base  # noqa: E402
+
 
 @pytest.fixture(scope="session")
 def test_engine():
-    """Create test database engine"""
-    test_engine = create_engine(database_url)
-    Base.metadata.create_all(bind=test_engine)
-    yield test_engine
-    Base.metadata.drop_all(bind=test_engine)
+    """Create an in-memory SQLite engine for the test session."""
+    engine = create_engine(
+        TEST_DATABASE_URL, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
 def test_db(test_engine):
-    """Create test database session that rolls back after each test"""
+    """Create test database session that rolls back after each test."""
     connection = test_engine.connect()
     transaction = connection.begin()
     db = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection,
-        join_transaction_mode="create_savepoint"
+        autocommit=False,
+        autoflush=False,
+        bind=connection,
+        join_transaction_mode="create_savepoint",
     )()
     try:
         yield db
@@ -34,13 +47,13 @@ def test_db(test_engine):
 
 @pytest.fixture
 def test_app(test_engine):
-    """Create test FastAPI application with test database"""
+    """Create test FastAPI application with test database override."""
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
+        session_factory = sessionmaker(
             autocommit=False, autoflush=False, bind=test_engine
         )
-        db = TestingSessionLocal()
+        db = session_factory()
         try:
             yield db
         finally:
@@ -53,5 +66,5 @@ def test_app(test_engine):
 
 @pytest.fixture
 def client(test_app):
-    """Create test client"""
+    """Create test HTTP client."""
     return TestClient(test_app)

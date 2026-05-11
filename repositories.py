@@ -3,8 +3,8 @@ import models
 
 
 # Create a new book
-def create_book(db: Session, book: models.BookIn):
-    db_book = models.Book(title=book.title, author=book.author)
+def create_book(db: Session, book: models.BookIn) -> models.Book:
+    db_book = models.Book(title=book.title, author=book.author, isbn=book.isbn)
     db.add(db_book)
     db.commit()
     db.refresh(db_book)
@@ -12,21 +12,22 @@ def create_book(db: Session, book: models.BookIn):
 
 
 # Get all books
-def get_books(db: Session, skip: int = 0, limit: int = 10):
+def get_books(db: Session, skip: int = 0, limit: int = 10) -> list[models.Book]:
     return db.query(models.Book).offset(skip).limit(limit).all()
 
 
 # Get a book by ID
-def get_book(db: Session, book_id: int):
+def get_book(db: Session, book_id: int) -> models.Book | None:
     return db.query(models.Book).filter(models.Book.id == book_id).first()
 
 
 # Update a book
-def update_book(db: Session, book_id: int, book: models.BookIn):
+def update_book(db: Session, book_id: int, book: models.BookIn) -> models.Book | None:
     db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
     if db_book:
         db_book.title = book.title
         db_book.author = book.author
+        db_book.isbn = book.isbn
         db.commit()
         db.refresh(db_book)
         return db_book
@@ -34,7 +35,7 @@ def update_book(db: Session, book_id: int, book: models.BookIn):
 
 
 # Delete a book
-def delete_book(db: Session, book_id: int):
+def delete_book(db: Session, book_id: int) -> models.Book | None:
     db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
     if db_book:
         db.delete(db_book)

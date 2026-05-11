@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String
 from pydantic import BaseModel, ConfigDict
@@ -6,8 +7,6 @@ from pydantic import BaseModel, ConfigDict
 # SQLAlchemy models
 class Base(DeclarativeBase):
     """Base class for all database models"""
-
-    pass
 
 
 class Book(Base):
@@ -18,7 +17,8 @@ class Book(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
     author: Mapped[str] = mapped_column(String(255))
-    isbn: Mapped[str] = mapped_column(String(255), nullable=False)
+    isbn: Mapped[str] = mapped_column(String(13), unique=True, nullable=False)
+
 
 # Pydantic models
 class BookIn(BaseModel):
@@ -26,6 +26,7 @@ class BookIn(BaseModel):
 
     title: str
     author: str
+    isbn: str
 
 
 class BookOut(BaseModel):
@@ -34,5 +35,6 @@ class BookOut(BaseModel):
     id: int
     title: str
     author: str
+    isbn: str
 
     model_config = ConfigDict(from_attributes=True)

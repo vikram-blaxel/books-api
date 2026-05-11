@@ -9,3 +9,10 @@
 
 # macOS
 .DS_Store
+
+# Secrets — never commit credentials
+.env
+
+# SQLite test artefacts
+*.db
+file::memory:

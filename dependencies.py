@@ -1,10 +1,15 @@
-from typing import Generator
+import logging
 import os
+from typing import Generator
+
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, sessionmaker
+
 from models import Base
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 database_url = os.getenv("DATABASE_URL")
@@ -18,12 +23,12 @@ engine = create_engine(database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def init_db():
+def init_db() -> None:
     """Initialize the database by creating all tables."""
     try:
         Base.metadata.create_all(bind=engine)
     except SQLAlchemyError as e:
-        print(f"Error initializing the database: {e}")
+        logger.error("Error initializing the database: %s", e)
         raise
 
 

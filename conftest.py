@@ -1,18 +1,20 @@
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+
 from main import create_app
 from dependencies import get_db, database_url
 from models import Base
 
+
 @pytest.fixture(scope="session")
 def test_engine():
     """Create test database engine"""
-    test_engine = create_engine(database_url)
-    Base.metadata.create_all(bind=test_engine)
-    yield test_engine
-    Base.metadata.drop_all(bind=test_engine)
+    engine = create_engine(database_url)
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
@@ -21,8 +23,10 @@ def test_db(test_engine):
     connection = test_engine.connect()
     transaction = connection.begin()
     db = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection,
-        join_transaction_mode="create_savepoint"
+        autocommit=False,
+        autoflush=False,
+        bind=connection,
+        join_transaction_mode="create_savepoint",
     )()
     try:
         yield db
@@ -33,18 +37,14 @@ def test_db(test_engine):
 
 
 @pytest.fixture
-def test_app(test_engine):
-    """Create test FastAPI application with test database"""
+def test_app(test_db):
+    """Create test FastAPI application with test database using transactional rollback"""
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
-        db = TestingSessionLocal()
         try:
-            yield db
+            yield test_db
         finally:
-            db.close()
+            pass  # session lifecycle managed by test_db fixture
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db

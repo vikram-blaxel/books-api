@@ -1,6 +1,9 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from sqlalchemy.exc import IntegrityError
+
 import models
 import repositories
 from dependencies import get_db
@@ -15,8 +18,16 @@ router = APIRouter()
 def create_book(book: models.BookIn, db: Session = Depends(get_db)):
     try:
         return repositories.create_book(db=db, book=book)
+    except IntegrityError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A book with the given ISBN already exists.",
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to create book.",
+        ) from e
 
 
 @router.get(
@@ -27,8 +38,9 @@ def get_books(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
         return repositories.get_books(db=db, skip=skip, limit=limit)
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
-        )
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error.",
+        ) from e
 
 
 @router.get(

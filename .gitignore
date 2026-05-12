@@ -9,3 +9,9 @@
 
 # macOS
 .DS_Store
+
+# Environment / secrets
+.env
+
+# SQLite databases
+*.db

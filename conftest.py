@@ -1,46 +1,57 @@
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 from main import create_app
-from dependencies import get_db, database_url
+from dependencies import get_db
 from models import Base
+
+
+def _make_sqlite_engine():
+    """Return a fresh SQLite in-memory engine with the full schema."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    return engine
+
 
 @pytest.fixture(scope="session")
 def test_engine():
-    """Create test database engine"""
-    test_engine = create_engine(database_url)
-    Base.metadata.create_all(bind=test_engine)
-    yield test_engine
-    Base.metadata.drop_all(bind=test_engine)
+    """Create test database engine (SQLite in-memory for portability)."""
+    engine = _make_sqlite_engine()
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture(scope="function")
-def test_db(test_engine):
-    """Create test database session that rolls back after each test"""
-    connection = test_engine.connect()
-    transaction = connection.begin()
-    db = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection,
-        join_transaction_mode="create_savepoint"
-    )()
+def test_db():
+    """Provide a clean, isolated DB session for each repository test.
+
+    Each test gets its own in-memory SQLite database so there is zero
+    state leakage between tests regardless of what the repository commits.
+    """
+    engine = _make_sqlite_engine()
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = Session()
     try:
         yield db
     finally:
         db.close()
-        transaction.rollback()
-        connection.close()
+        engine.dispose()
 
 
 @pytest.fixture
-def test_app(test_engine):
-    """Create test FastAPI application with test database"""
+def test_app():
+    """Create a test FastAPI application backed by a fresh in-memory SQLite DB."""
+    engine = _make_sqlite_engine()
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
-        db = TestingSessionLocal()
+        Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        db = Session()
         try:
             yield db
         finally:

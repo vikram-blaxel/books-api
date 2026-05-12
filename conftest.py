@@ -1,18 +1,19 @@
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from main import create_app
 from dependencies import get_db, database_url
 from models import Base
 
+
 @pytest.fixture(scope="session")
 def test_engine():
     """Create test database engine"""
-    test_engine = create_engine(database_url)
-    Base.metadata.create_all(bind=test_engine)
-    yield test_engine
-    Base.metadata.drop_all(bind=test_engine)
+    engine = create_engine(database_url)
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
 
 
 @pytest.fixture(scope="function")
@@ -21,8 +22,10 @@ def test_db(test_engine):
     connection = test_engine.connect()
     transaction = connection.begin()
     db = sessionmaker(
-        autocommit=False, autoflush=False, bind=connection,
-        join_transaction_mode="create_savepoint"
+        autocommit=False,
+        autoflush=False,
+        bind=connection,
+        join_transaction_mode="create_savepoint",
     )()
     try:
         yield db
@@ -34,13 +37,23 @@ def test_db(test_engine):
 
 @pytest.fixture
 def test_app(test_engine):
-    """Create test FastAPI application with test database"""
+    """Create test FastAPI application with test database.
+
+    Uses a single connection/transaction per test so that data written in one
+    request is visible to subsequent requests within the same test, while still
+    being rolled back at the end of the test.
+    """
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    testing_session_local = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=connection,
+        join_transaction_mode="create_savepoint",
+    )
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=test_engine
-        )
-        db = TestingSessionLocal()
+        db = testing_session_local()
         try:
             yield db
         finally:
@@ -48,7 +61,10 @@ def test_app(test_engine):
 
     app = create_app()
     app.dependency_overrides[get_db] = override_get_db
-    return app
+    yield app
+
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture

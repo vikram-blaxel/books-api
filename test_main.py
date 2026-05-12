@@ -1,23 +1,26 @@
 from repositories import create_book, get_books, get_book, update_book, delete_book
 from models import BookIn
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import inspect
 
 
 # Test data constants
 TEST_BOOKS = [
-    {"title": "Carrie", "author": "Stephen King"},
-    {"title": "Ready Player One", "author": "Ernest Cline"},
+    {"title": "Carrie", "author": "Stephen King", "isbn": "9780385533225"},
+    {"title": "Ready Player One", "author": "Ernest Cline", "isbn": "9780307887436"},
 ]
+
 
 class TestMainApp:
     def test_create_app(self, test_app):
         """Test application creation"""
         assert test_app is not None
+        assert len(test_app.routes) > 0
 
     def test_database_initialization(self, test_engine):
         """Test database initialization"""
         inspector = inspect(test_engine)
         assert "books" in inspector.get_table_names()
+
 
 # Repository Tests
 class TestBookRepository:
@@ -26,6 +29,7 @@ class TestBookRepository:
         book = create_book(test_db, BookIn(**TEST_BOOKS[0]))
         assert book.title == TEST_BOOKS[0]["title"]
         assert book.author == TEST_BOOKS[0]["author"]
+        assert book.isbn == TEST_BOOKS[0]["isbn"]
         assert book.id is not None
 
     def test_get_books(self, test_db):
@@ -34,9 +38,22 @@ class TestBookRepository:
         book2 = create_book(test_db, BookIn(**TEST_BOOKS[1]))
 
         books = get_books(test_db)
-        #assert len(books) >= 2
+        assert len(books) >= 2
         assert any(b.id == book1.id for b in books)
         assert any(b.id == book2.id for b in books)
+
+    def test_get_books_pagination(self, test_db):
+        """Test pagination parameters for get_books"""
+        create_book(test_db, BookIn(**TEST_BOOKS[0]))
+        create_book(test_db, BookIn(**TEST_BOOKS[1]))
+
+        books_page1 = get_books(test_db, skip=0, limit=1)
+        assert len(books_page1) == 1
+
+        books_page2 = get_books(test_db, skip=1, limit=1)
+        assert len(books_page2) == 1
+
+        assert books_page1[0].id != books_page2[0].id
 
     def test_get_book(self, test_db):
         """Test getting a specific book"""
@@ -45,6 +62,7 @@ class TestBookRepository:
         assert retrieved_book is not None
         assert retrieved_book.id == created_book.id
         assert retrieved_book.title == TEST_BOOKS[0]["title"]
+        assert retrieved_book.isbn == TEST_BOOKS[0]["isbn"]
 
     def test_update_book(self, test_db):
         """Test updating a book"""
@@ -54,18 +72,140 @@ class TestBookRepository:
         assert updated_book is not None
         assert updated_book.title == TEST_BOOKS[1]["title"]
         assert updated_book.author == TEST_BOOKS[1]["author"]
+        assert updated_book.isbn == TEST_BOOKS[1]["isbn"]
 
     def test_delete_book(self, test_db):
         """Test deleting a book"""
-        book = create_book(test_db, BookIn(title="To Delete", author="Author"))
+        book = create_book(
+            test_db, BookIn(title="To Delete", author="Author", isbn="9780307887436")
+        )
         deleted_book = delete_book(test_db, book.id)
 
         assert deleted_book is not None
         assert deleted_book.id == book.id
         assert get_book(test_db, book.id) is None
 
-    def test_nonexistent_operations(self, test_db):
-        """Test operations on nonexistent books"""
+    def test_get_nonexistent_book(self, test_db):
+        """Test get operation on a nonexistent book"""
         assert get_book(test_db, 999999) is None
-        assert update_book(test_db, 999999, BookIn(title="Test", author="Test")) is None
+
+    def test_update_nonexistent_book(self, test_db):
+        """Test update operation on a nonexistent book"""
+        assert (
+            update_book(
+                test_db, 999999, BookIn(title="Test", author="Test", isbn="9780307887436")
+            )
+            is None
+        )
+
+    def test_delete_nonexistent_book(self, test_db):
+        """Test delete operation on a nonexistent book"""
         assert delete_book(test_db, 999999) is None
+
+
+# HTTP / Router Tests
+class TestAPIRoutes:
+    def test_create_book(self, client):
+        """Test POST /api/books/ happy path"""
+        payload = {"title": "Dune", "author": "Frank Herbert", "isbn": "9780340960196"}
+        response = client.post("/api/books/", json=payload)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["title"] == payload["title"]
+        assert data["author"] == payload["author"]
+        assert data["isbn"] == payload["isbn"]
+        assert "id" in data
+
+    def test_create_book_missing_isbn_returns_422(self, client):
+        """Test POST /api/books/ returns 422 when isbn is absent"""
+        payload = {"title": "Dune", "author": "Frank Herbert"}
+        response = client.post("/api/books/", json=payload)
+        assert response.status_code == 422
+
+    def test_create_book_invalid_isbn_returns_422(self, client):
+        """Test POST /api/books/ returns 422 when isbn format is invalid"""
+        payload = {"title": "Dune", "author": "Frank Herbert", "isbn": "not-an-isbn"}
+        response = client.post("/api/books/", json=payload)
+        assert response.status_code == 422
+
+    def test_get_books(self, client):
+        """Test GET /api/books/ returns a list"""
+        client.post(
+            "/api/books/",
+            json={"title": "Carrie", "author": "Stephen King", "isbn": "9780385533225"},
+        )
+        response = client.get("/api/books/")
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_get_books_pagination_limit(self, client):
+        """Test GET /api/books/ respects limit query parameter"""
+        for i in range(3):
+            client.post(
+                "/api/books/",
+                json={"title": f"Book {i}", "author": "Author", "isbn": "9780385533225"},
+            )
+        response = client.get("/api/books/?limit=2&skip=0")
+        assert response.status_code == 200
+        assert len(response.json()) <= 2
+
+    def test_get_books_limit_exceeds_max_returns_422(self, client):
+        """Test GET /api/books/ returns 422 when limit exceeds maximum (100)"""
+        response = client.get("/api/books/?limit=1000000")
+        assert response.status_code == 422
+
+    def test_get_book(self, client):
+        """Test GET /api/books/{book_id} happy path"""
+        create_resp = client.post(
+            "/api/books/",
+            json={"title": "1984", "author": "George Orwell", "isbn": "9780451524935"},
+        )
+        book_id = create_resp.json()["id"]
+        response = client.get(f"/api/books/{book_id}")
+        assert response.status_code == 200
+        assert response.json()["id"] == book_id
+
+    def test_get_book_not_found(self, client):
+        """Test GET /api/books/{book_id} returns 404 for missing book"""
+        response = client.get("/api/books/999999")
+        assert response.status_code == 404
+
+    def test_update_book(self, client):
+        """Test PUT /api/books/{book_id} happy path"""
+        create_resp = client.post(
+            "/api/books/",
+            json={"title": "Old Title", "author": "Old Author", "isbn": "9780451524935"},
+        )
+        book_id = create_resp.json()["id"]
+        update_payload = {
+            "title": "New Title",
+            "author": "New Author",
+            "isbn": "9780385533225",
+        }
+        response = client.put(f"/api/books/{book_id}", json=update_payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "New Title"
+        assert data["isbn"] == "9780385533225"
+
+    def test_update_book_not_found(self, client):
+        """Test PUT /api/books/{book_id} returns 404 for missing book"""
+        payload = {"title": "X", "author": "Y", "isbn": "9780451524935"}
+        response = client.put("/api/books/999999", json=payload)
+        assert response.status_code == 404
+
+    def test_delete_book(self, client):
+        """Test DELETE /api/books/{book_id} happy path"""
+        create_resp = client.post(
+            "/api/books/",
+            json={"title": "To Delete", "author": "Author", "isbn": "9780451524935"},
+        )
+        book_id = create_resp.json()["id"]
+        response = client.delete(f"/api/books/{book_id}")
+        assert response.status_code == 200
+        assert response.json()["id"] == book_id
+
+    def test_delete_book_not_found(self, client):
+        """Test DELETE /api/books/{book_id} returns 404 for missing book"""
+        response = client.delete("/api/books/999999")
+        assert response.status_code == 404

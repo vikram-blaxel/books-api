@@ -8,9 +8,9 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger review swarm
+      - name: Trigger review-swarm agent
         run: |
-          curl -sf -X POST \
+          curl -f -v -X POST \
             "https://agt-review-swarm-orchestrator-${{ vars.BLAXEL_WORKSPACE }}.bl.run/review" \
             -H "Content-Type: application/json" \
             -H "X-Blaxel-Authorization: Bearer ${{ secrets.BLAXEL_API_KEY }}" \

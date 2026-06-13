@@ -1,3 +1,4 @@
+import logging
 from typing import Generator
 import os
 from dotenv import load_dotenv
@@ -5,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from models import Base
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 database_url = os.getenv("DATABASE_URL")
@@ -23,7 +26,7 @@ def init_db():
     try:
         Base.metadata.create_all(bind=engine)
     except SQLAlchemyError as e:
-        print(f"Error initializing the database: {e}")
+        logger.error("Error initializing the database")
         raise
 
 

@@ -1,10 +1,11 @@
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from main import create_app
 from dependencies import get_db, database_url
 from models import Base
+
 
 @pytest.fixture(scope="session")
 def test_engine():
@@ -37,10 +38,10 @@ def test_app(test_engine):
     """Create test FastAPI application with test database"""
 
     def override_get_db():
-        TestingSessionLocal = sessionmaker(
+        session_factory = sessionmaker(
             autocommit=False, autoflush=False, bind=test_engine
         )
-        db = TestingSessionLocal()
+        db = session_factory()
         try:
             yield db
         finally:

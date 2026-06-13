@@ -1,11 +1,16 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from typing import List
 import models
 import repositories
 from dependencies import get_db
 
-# Create router with prefix
+logger = logging.getLogger(__name__)
+
+# Router for /books endpoints (mounted under /api in main.py)
 router = APIRouter()
 
 
@@ -15,8 +20,18 @@ router = APIRouter()
 def create_book(book: models.BookIn, db: Session = Depends(get_db)):
     try:
         return repositories.create_book(db=db, book=book)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except IntegrityError as e:
+        logger.exception("IntegrityError creating book: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to create book. A book with that ISBN may already exist.",
+        )
+    except SQLAlchemyError as e:
+        logger.exception("Database error creating book: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to create book.",
+        )
 
 
 @router.get(
@@ -25,9 +40,11 @@ def create_book(book: models.BookIn, db: Session = Depends(get_db)):
 def get_books(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     try:
         return repositories.get_books(db=db, skip=skip, limit=limit)
-    except Exception as e:
+    except SQLAlchemyError as e:
+        logger.exception("Database error fetching books: %s", e)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to retrieve books.",
         )
 
 

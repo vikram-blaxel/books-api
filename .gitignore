@@ -9,3 +9,10 @@
 
 # macOS
 .DS_Store
+
+# Secrets — never commit credentials
+.env
+
+# Generated test/coverage artifacts
+test.db
+.coverage

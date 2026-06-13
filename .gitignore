@@ -9,3 +9,6 @@
 
 # macOS
 .DS_Store
+
+# Environment / secrets — never commit real credentials
+.env

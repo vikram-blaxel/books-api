@@ -1,0 +1,21 @@
+name: Review Swarm
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger review-swarm agent
+        run: |
+          curl -sf -X POST \
+            "https://agt-review-swarm-orchestrator-${{ secrets.BLAXEL_WORKSPACE }}.bl.run/review" \
+            -H "Content-Type: application/json" \
+            -H "X-Blaxel-Authorization: Bearer ${{ secrets.BLAXEL_API_KEY }}" \
+            -d '{
+              "repository": "${{ github.repository }}",
+              "pr_number": ${{ github.event.pull_request.number }},
+              "open_pr": true
+            }'

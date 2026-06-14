@@ -19,6 +19,8 @@ class Book(Base):
     title: Mapped[str] = mapped_column(String(255), index=True)
     author: Mapped[str] = mapped_column(String(255))
     isbn: Mapped[str] = mapped_column(String(255), nullable=False)
+    publisher: Mapped[str] = mapped_column(String(255), nullable=False)
+
 
 # Pydantic models
 class BookIn(BaseModel):

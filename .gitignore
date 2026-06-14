@@ -9,3 +9,8 @@
 
 # macOS
 .DS_Store
+
+# Environment files — never commit real credentials
+.env
+test.db
+*.db

@@ -1,13 +1,11 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # SQLAlchemy models
 class Base(DeclarativeBase):
     """Base class for all database models"""
-
-    pass
 
 
 class Book(Base):
@@ -26,8 +24,10 @@ class Book(Base):
 class BookIn(BaseModel):
     """Pydantic model for book input"""
 
-    title: str
-    author: str
+    title: str = Field(min_length=1, max_length=255)
+    author: str = Field(min_length=1, max_length=255)
+    isbn: str = Field(min_length=1, max_length=255)
+    publisher: str = Field(min_length=1, max_length=255)
 
 
 class BookOut(BaseModel):
@@ -36,5 +36,7 @@ class BookOut(BaseModel):
     id: int
     title: str
     author: str
+    isbn: str
+    publisher: str
 
     model_config = ConfigDict(from_attributes=True)
